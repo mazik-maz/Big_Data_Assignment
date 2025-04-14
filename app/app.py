@@ -9,7 +9,7 @@ if len(sys.argv) > 1:
     input_file = sys.argv[1]
 
 # Connect to Cassandra (the service name from Docker Compose is 'cassandra-server')
-cluster = Cluster(['cassandra-server-1'])
+cluster = Cluster(['cassandra-server'])
 session = cluster.connect()
 
 # Create keyspace (simple strategy, replication factor 1 since we have a single node for now)
