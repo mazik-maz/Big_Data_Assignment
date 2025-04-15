@@ -7,6 +7,8 @@ from cassandra.query import SimpleStatement
 input_file = None
 if len(sys.argv) > 1:
     input_file = sys.argv[1]
+else:
+    input_file = "index_result.txt"
 
 # Connect to Cassandra (the service name from Docker Compose is 'cassandra-server')
 cluster = Cluster(['cassandra-server'])
@@ -68,15 +70,9 @@ try:
 except FileNotFoundError:
     # If file not found, we might handle differently or rely on MapReduce output (less ideal for title)
     print("Warning: data/sample.txt not found. Titles will not be available.")
-    doc_titles = {}
-    doc_lengths = {}
 
-# If we didn't get doc_lengths (e.g., file missing), we could derive from postings (sum tfs) later.
 
-# If an index output file is specified, use it; otherwise, default to 'index_result.txt'
-if input_file is None:
-    input_file = "index_result.txt"
-
+print(f"Length of doc_titlse is {len(doc_titles)}. Just for checking proper work of code")
 print(f"Reading index output from {input_file} ...")
 try:
     with open(input_file, "r", encoding="utf-8") as f:
@@ -88,7 +84,6 @@ try:
             tag = parts[0]
             if tag == "VOCAB":
                 # Format: VOCAB, term, df
-                # parts example: ["VOCAB", "data", "50"]
                 if len(parts) >= 3:
                     term = parts[1]
                     df = int(parts[2])
@@ -119,7 +114,7 @@ except FileNotFoundError as e:
 
 print("Inserting document stats into Cassandra...")
 for doc_id, length in doc_lengths.items():
-    title = doc_titles.get(doc_id, "")
+    title = doc_titles[doc_id]
     session.execute(
         "INSERT INTO doc_stats (doc_id, title, doc_length) VALUES (%s, %s, %s)",
         (doc_id, title, length)
