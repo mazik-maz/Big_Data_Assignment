@@ -1,4 +1,3 @@
-# app/query.py
 import sys
 from math import log
 
@@ -20,7 +19,7 @@ if not query_text:
     print("No query provided.")
     sys.exit(0)
 
-print(f"Query: {query_text}")
+print(f"Query: {query_text}") # check proper work in logs
 
 # Simple preprocessing of query: lowercase and split into terms
 query_terms = [t for t in query_text.lower().split() if t]
@@ -28,25 +27,23 @@ if not query_terms:
     print("No valid query terms.")
     sys.exit(0)
 
-# Remove duplicate terms in query for efficiency (but keep for scoring if term appears multiple times in query,
-# though usually IDF and doc stats don't change; BM25 for multiple occurrences in query could weight more,
-# but a simple approach is to treat query term frequency as 1 for BM25 as an approximation.)
+# Remove duplicate terms in query for efficiency (this point was not easy for me, 
+# i studied different approaches and decided that  iwill use this simplified 
+# implementation without counting the frequency of repetition of terms in query too)
 unique_query_terms = set(query_terms)
 
 # Get total number of documents (N) and average document length (avgdl) from doc_stats table
-# We can do this by selecting all doc_length or using COUNT and AVG in a loop.
 rows = session.execute("SELECT doc_length FROM doc_stats")
 doc_lengths_list = [row.doc_length for row in rows]
 N = len(doc_lengths_list)
 avgdl = sum(doc_lengths_list) / N if N > 0 else 0.0
 
-# Prepare a dict to accumulate scores: doc_id -> score
+# Dictionary to accumulate scores: doc_id -> score
 scores = {}
 
 # For each term in the query, get postings and compute partial scores
 k1 = 1.2
 b = 0.75
-
 for term in unique_query_terms:
     # Get document frequency for the term
     df_row = session.execute("SELECT doc_freq FROM vocabulary WHERE term = %s", (term, )).one()
@@ -57,37 +54,25 @@ for term in unique_query_terms:
     if df == 0:
         continue
 
-    # Compute IDF for the term. Using BM25 idf formula:
-    # idf = log((N - df + 0.5) / (df + 0.5) + 1)
+    # Compute IDF for the term using BM25 idf formula
     idf = log((N - df + 0.5) / (df + 0.5) + 1)
     # Retrieve all postings for this term
     postings = session.execute("SELECT doc_id, term_freq FROM inverted_index WHERE term = %s", (term, ))
     for row in postings:
         doc_id = row.doc_id
         tf = row.term_freq
-        # Get document length from our cached list (we have doc_lengths_list but not a direct mapping).
-        # Better, we can fetch from doc_stats table for this doc (since small number of docs typically).
-        # We'll use a quick way: we have doc_stats in Cassandra, let's query it.
-        # (Alternatively, we could have built a dict of doc_id->length from earlier selection.)
+        # Get document length from doc_stats in Cassandra
         if doc_id is None:
             continue
         if doc_id not in scores:
             scores[doc_id] = 0.0
-
-        # If we had doc_lengths dict from earlier:
-        # We didn't build doc_id->length dict above, but we can fetch each needed doc's length from session
-        # to avoid scanning entire list:
+        
         length_row = session.execute("SELECT doc_length FROM doc_stats WHERE doc_id = %s", (doc_id, )).one()
-        dl = length_row.doc_length if length_row else avgdl  # fallback to avgdl if not found (should not happen)
+        dl = length_row.doc_length if length_row else avgdl  # avgdl if not found (just for save work)
 
         # Compute BM25 score contribution for this term and document
-        # tf weight:
         score_term = idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (dl / avgdl)))
         scores[doc_id] += score_term
-
-# After processing all terms, we have a score for each doc that had at least one query term.
-# If query had duplicate terms, note we treated each term once (this assumes query term frequency doesn't significantly change weighting, 
-# which is a simplification; a more complete approach would incorporate term frequency in query as well).
 
 # Get top 10 docs by score
 top_docs = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
