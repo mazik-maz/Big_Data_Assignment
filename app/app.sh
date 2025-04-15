@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start ssh server
+echo "Start ssh server..."
 service ssh restart 
 
 echo "Starting the services..."
