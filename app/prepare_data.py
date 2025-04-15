@@ -1,34 +1,33 @@
-# app/prepare_data.py
 from pyspark.sql import SparkSession
 from pathvalidate import sanitize_filename
 from tqdm import tqdm
 
-# Initialize SparkSession (using local mode here for data preparation)
+# Initialize SparkSession
 spark = SparkSession.builder \
     .appName("data_preparation") \
     .master("local") \
     .config("spark.sql.parquet.enableVectorizedReader", "true") \
     .getOrCreate()
 
-# Read the Parquet file (the file should be present at /app/a.parquet in the container)
+# Read the Parquet file
 df = spark.read.parquet("/a.parquet")
 
-# Select relevant columns and sample 1000 documents (or use all if fewer than 1000 available)
+# Select relevant columns and sample 1000 documents
 n = 1000
 df = df.select("id", "title", "text")
 total_docs = df.count()
 if total_docs >= n:
     df = df.limit(n)
 else:
-    # fewer than 1000, so we just take all
+    # Fewer than 1000, so we just take all
     n = total_docs
 
 print(f"Preparing {n} documents out of {total_docs} available...")
 
-# Collect the sampled DataFrame to driver (n is reasonably small, so this is fine)
+# Collect the sampled DataFrame to driver
 docs = df.collect()
 
-# Use tqdm for progress indication (optional, just for visual feedback in logs)
+# Use tqdm for progress indication
 for row in tqdm(docs, desc="Writing documents", unit="doc"):
     doc_id = str(row['id'])
     title = row['title'] if row['title'] is not None else ""
@@ -36,8 +35,8 @@ for row in tqdm(docs, desc="Writing documents", unit="doc"):
     # Replace any newlines in text to spaces for consistency
     text_single_line = text.replace("\n", " ")
     # Sanitize filename to avoid illegal characters and combine id and title
-    filename = sanitize_filename(f"{doc_id}_{title}")[:100]  # limit length for safety
-    filepath = f"data/{filename}.txt".replace(" ", "_")
+    filename = sanitize_filename(f"{doc_id}_{title}")[:100]  # limit length for safety (saw in different works of other people in internet)
+    filepath = f"data/{filename}.txt".replace(" ", "_") # replace spaces with _
     # Write document text to a file
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(text)
