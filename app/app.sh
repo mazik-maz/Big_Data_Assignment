@@ -22,4 +22,4 @@ echo "Run the indexer..."
 bash index.sh data/sample.txt
 
 echo "Run the ranker..."
-bash search.sh "this is a query!"
+bash search.sh "Best city in the world"
