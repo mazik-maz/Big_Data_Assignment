@@ -96,5 +96,6 @@ print("\nTop 10 Results:")
 for rank, (doc_id, score) in enumerate(top_docs, start=1):
     # Fetch title from doc_stats for display
     title_row = session.execute("SELECT title FROM doc_stats WHERE doc_id = %s", (doc_id, )).one()
+    print(title_row)
     title = title_row.title if title_row and title_row.title is not None else ""
     print(f"{rank}. DocID={doc_id}\tScore={score:.4f}\tTitle={title}")
