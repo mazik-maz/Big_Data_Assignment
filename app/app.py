@@ -1,4 +1,3 @@
-# app/app.py
 import sys
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
@@ -10,11 +9,11 @@ if len(sys.argv) > 1:
 else:
     input_file = "index_result.txt"
 
-# Connect to Cassandra (the service name from Docker Compose is 'cassandra-server')
+# Connect to cassandra
 cluster = Cluster(['cassandra-server'])
 session = cluster.connect()
 
-# Create keyspace (simple strategy, replication factor 1 since we have a single node for now)
+# Create keyspace with replication_factor = 1 becasuse we run for 1 node
 KEYSPACE = "search_engine"
 print("Creating keyspace (if not exists)...")
 session.execute(f"""
@@ -47,7 +46,7 @@ session.execute("""
     )
 """)
 
-# Prepare dictionaries for doc titles and lengths
+# Dictionaries for doc titles and lengths
 doc_titles = {}
 doc_lengths = {}
 
@@ -68,7 +67,6 @@ try:
             terms = re.findall(r"\w+", text.lower())
             doc_lengths[doc_id] = len([term for term in terms if term and not term.isdigit()])
 except FileNotFoundError:
-    # If file not found, we might handle differently or rely on MapReduce output (less ideal for title)
     print("Warning: data/sample.txt not found. Titles will not be available.")
 
 
